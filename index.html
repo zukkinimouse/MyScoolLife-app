@@ -418,6 +418,18 @@
 <div id="kyuryoModal" class="modal">
   <div class="modal-handle"></div>
   <p class="modal-title">💰 給料計算</p>
+  <!-- 締め日設定 -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:10px;background:var(--border);border-radius:10px;">
+    <span style="font-size:12px;font-weight:900;color:var(--text-sub);white-space:nowrap;">締め日</span>
+    <select id="shimeBi" onchange="saveShimeBi();openKyuryo()" style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:13px;font-weight:900;color:var(--text-main);background:var(--input-bg);outline:none;cursor:pointer;">
+      <option value="0">末締め（月末〜翌月1日）</option>
+      <option value="5">5日締め</option>
+      <option value="10">10日締め</option>
+      <option value="15" selected>15日締め</option>
+      <option value="20">20日締め</option>
+      <option value="25">25日締め</option>
+    </select>
+  </div>
   <div class="kyuryo-period" id="kyuryoPeriod"></div>
   <div class="kyuryo-hourly-row">
     <label>時給</label>
@@ -897,19 +909,58 @@ function setCustomSubject(){
 }
 
 // ===== 給料計算 =====
-function openKyuryo(){
-  const today=new Date();
-  let periodStart,periodEnd;
-  if(today.getDate()>=16){
-    periodStart=new Date(today.getFullYear(),today.getMonth(),16);
-    periodEnd  =new Date(today.getFullYear(),today.getMonth()+1,15);
-  } else {
-    periodStart=new Date(today.getFullYear(),today.getMonth()-1,16);
-    periodEnd  =new Date(today.getFullYear(),today.getMonth(),15);
+function saveShimeBi(){
+  const v = document.getElementById('shimeBi').value;
+  localStorage.setItem('shimeBi', v);
+}
+function loadShimeBi(){
+  const saved = localStorage.getItem('shimeBi');
+  if(saved !== null){
+    document.getElementById('shimeBi').value = saved;
   }
+}
+
+// 締め日から集計期間を計算する
+// shimeBi=0 → 末締め（当月1日〜末日）、それ以外→ 前月(shimeBi+1)日〜当月shimeBi日
+function calcPeriod(shimeBi){
+  const today = new Date();
+  const d = today.getDate();
+  let periodStart, periodEnd;
+
+  if(shimeBi === 0){
+    // 末締め：当月1日〜末日
+    if(d >= 1){
+      periodStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      periodEnd   = new Date(today.getFullYear(), today.getMonth()+1, 0); // 月末
+    }
+  } else {
+    // shimeBi日締め：前月(shimeBi+1)日〜今月shimeBi日
+    if(d > shimeBi){
+      // 締め日を過ぎている → 今月(shimeBi+1)日〜来月shimeBi日
+      periodStart = new Date(today.getFullYear(), today.getMonth(), shimeBi+1);
+      periodEnd   = new Date(today.getFullYear(), today.getMonth()+1, shimeBi);
+    } else {
+      // 締め日以前 → 先月(shimeBi+1)日〜今月shimeBi日
+      periodStart = new Date(today.getFullYear(), today.getMonth()-1, shimeBi+1);
+      periodEnd   = new Date(today.getFullYear(), today.getMonth(), shimeBi);
+    }
+  }
+  return { periodStart, periodEnd };
+}
+
+function openKyuryo(){
+  loadShimeBi();
+  const shimeBi = parseInt(document.getElementById('shimeBi').value);
+  const { periodStart, periodEnd } = calcPeriod(shimeBi);
   const ps=fmtDate(periodStart), pe=fmtDate(periodEnd);
+
+  // 末締めの場合は「末」と表示
+  const endLabel = shimeBi===0
+    ? `${periodEnd.getMonth()+1}月末`
+    : `${periodEnd.getMonth()+1}/${periodEnd.getDate()}`;
   document.getElementById('kyuryoPeriod').innerHTML=
-    `集計期間：<strong>${periodStart.getMonth()+1}/${periodStart.getDate()}</strong> 〜 <strong>${periodEnd.getMonth()+1}/${periodEnd.getDate()}</strong>`;
+    `集計期間：<strong>${periodStart.getMonth()+1}/${periodStart.getDate()}</strong> 〜 <strong>${endLabel}</strong>`;
+
   const saved=localStorage.getItem('hourlyWage');
   if(saved) document.getElementById('hourlyWage').value=saved;
 
@@ -1242,6 +1293,7 @@ function exportBackup(){
     countdownTargets,
     subjectColors,
     hourlyWage: localStorage.getItem('hourlyWage') || '',
+    shimeBi: localStorage.getItem('shimeBi') || '15',
     memo: localStorage.getItem('memo') || '',
   };
   const json = JSON.stringify(data, null, 2);
@@ -1276,6 +1328,7 @@ function importBackup(e){
       localStorage.setItem('countdownTargets',  JSON.stringify(countdownTargets));
       localStorage.setItem('subjectColors',     JSON.stringify(subjectColors));
       if(data.hourlyWage) localStorage.setItem('hourlyWage', data.hourlyWage);
+      if(data.shimeBi !== undefined) localStorage.setItem('shimeBi', data.shimeBi);
       if(data.memo !== undefined){
         localStorage.setItem('memo', data.memo);
         document.getElementById('mainMemo').value = data.memo;
@@ -1458,7 +1511,7 @@ window.onload=()=>{
   <div class="drawer-section" style="padding-top:8px;">
     <p style="font-size:10px;color:var(--text-sub);text-align:center;line-height:1.7;">
       ver 1.0.0<br>
-      Made with 💖 by ことりの巣
+      Made with 💖 by zukkiimouse
     </p>
   </div>
 </div>
@@ -1479,7 +1532,7 @@ window.onload=()=>{
     <button onclick="setEventTag('📝 小テスト')" style="background:#fff7ed;border:1.5px solid #fb923c;color:#92400e;border-radius:8px;padding:6px 12px;font-weight:900;font-size:11px;cursor:pointer;">📝 小テスト</button>
     <button onclick="setEventTag('🏃 部活')" style="background:#f0fdf4;border:1.5px solid #34d399;color:#065f46;border-radius:8px;padding:6px 12px;font-weight:900;font-size:11px;cursor:pointer;">🏃 部活</button>
     <button onclick="setEventTag('🎉 イベント')" style="background:#fdf4ff;border:1.5px solid #c084fc;color:#581c87;border-radius:8px;padding:6px 12px;font-weight:900;font-size:11px;cursor:pointer;">🎉 イベント</button>
-    <button onclick="setEventTag('🏥 病院')" style="background:#fff0f9;border:1.5px solid #f472b6;color:#831843;border-radius:8px;padding:6px 12px;font-weight:900;font-size:11px;cursor:pointer;">🏥 病院</button>
+    <!-- <button onclick="setEventTag('🏥 病院')" style="background:#fff0f9;border:1.5px solid #f472b6;color:#831843;border-radius:8px;padding:6px 12px;font-weight:900;font-size:11px;cursor:pointer;">🏥 病院</button> -->
   </div>
   <input type="text" id="eventInputText" placeholder="自由に入力もできるよ" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px;font-family:inherit;font-size:13px;outline:none;background:var(--input-bg);color:var(--text-main);margin-bottom:10px;">
   <div style="display:flex;gap:8px;">
