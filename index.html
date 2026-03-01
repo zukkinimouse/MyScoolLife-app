@@ -143,7 +143,8 @@
     .day-label.bulk-selectable { cursor: pointer; }
     .day-label.bulk-selected { background: #fef3c7; border-radius: 4px; color: #d97706; }
     .period-label { font-size: 9px; font-weight: 900; color: var(--text-sub); display: flex; align-items: center; justify-content: center; }
-    .cell { background: var(--card-bg); border-radius: 5px; aspect-ratio: 1/1.1; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; cursor: pointer; text-align: center; padding: 2px; transition: 0.15s; writing-mode: vertical-rl; letter-spacing: 0.1em; }
+    .cell { background: var(--card-bg); border-radius: 5px; aspect-ratio: 1/1.1; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; cursor: pointer; text-align: center; padding: 2px; transition: 0.15s; writing-mode: vertical-rl; }
+    .cell .cell-latin { text-combine-upright: all; }
     .cell.filled { border-color: var(--accent-pu); }
     .cell.today-col { border-color: #f9a8d4; background: #fff0f9; }
     .cell.filled.today-col { border-color: var(--accent-pk); }
@@ -615,7 +616,8 @@ function renderTimetable(){
       const bh=bulkMode&&bulkSelectedDays.has(j)?'bulk-highlight':'';
       const fn=bulkMode?`openSubjectModal('${id}',true,${j})`:`openSubjectModal('${id}',false,-1)`;
       const colorStyle=val&&!bh?getSubjectStyle(val):'';
-      html+=`<div class="cell ${val?'filled':''} ${tc} ${hc} ${bh}" style="${colorStyle}" onclick="${fn}">${val}</div>`;
+      const cellText = val ? val.replace(/[a-zA-Z0-9Ａ-Ｚａ-ｚ０-９ⅠⅡⅢⅣⅠⅡⅢABCDαβ]+/g, m=>`<span class="cell-latin">${m}</span>`) : '';
+      html+=`<div class="cell ${val?'filled':''} ${tc} ${hc} ${bh}" style="${colorStyle}" onclick="${fn}">${cellText}</div>`;
     });
   }
   grid.innerHTML=html;
